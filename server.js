@@ -3,13 +3,19 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 
-// Verify no conflicting router package is loaded
+// Verify environment variables
+if (!process.env.MONGO_URI) {
+  console.error('ERROR: Missing MONGO_URI in environment variables');
+  process.exit(1);
+}
+
+// Verify no conflicting router package
 try {
-    const router = require('router');
-    console.error('CONFLICT: Separate router package installed');
-    process.exit(1);
+  const router = require('router');
+  console.error('CONFLICT: Separate router package installed');
+  process.exit(1);
 } catch (err) {
-    // Good - no conflicting router package
+  // Proceed as expected
 }
 
 const app = express();
@@ -17,34 +23,47 @@ const PORT = process.env.PORT || 5000;
 
 // Enhanced DB connection with retry logic
 const connectDB = async (retries = 5) => {
-    while (retries > 0) {
-        try {
-            await mongoose.connect(process.env.MONGO_URI);
-            console.log('MongoDB Connected');
-            return;
-        } catch (err) {
-            console.error(`DB Connection failed (${retries} retries left)`);
-            retries--;
-            await new Promise(res => setTimeout(res, 5000));
-        }
+  while (retries > 0) {
+    try {
+      await mongoose.connect(process.env.MONGO_URI);
+      console.log('✅ MongoDB Connected');
+      return;
+    } catch (err) {
+      console.error(`DB Connection failed (${retries} retries left)`);
+      retries--;
+      await new Promise(res => setTimeout(res, 5000));
     }
-    process.exit(1);
+  }
+  console.error('❌ MongoDB connection failed after retries');
+  process.exit(1);
 };
 
-// Middleware with security enhancements
-app.use(cors({
-    origin: process.env.CORS_ORIGIN || '*'
-}));
+// Middleware
 app.use(express.json({ limit: '10kb' }));
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || [
+    'http://localhost:3000',
+    'https://your-frontend.vercel.app'
+  ],
+  credentials: true
+}));
 
-// Route imports with verification
+// Timeout handling
+app.use((req, res, next) => {
+  res.setTimeout(10000, () => {
+    res.status(503).json({ error: 'Service timeout' });
+  });
+  next();
+});
+
+// Route imports
 const loadRoute = (routePath) => {
-    const route = require(routePath);
-    if (typeof route !== 'function') {
-        console.error(`Invalid route module: ${routePath}`);
-        process.exit(1);
-    }
-    return route;
+  const route = require(routePath);
+  if (typeof route !== 'function') {
+    console.error(`Invalid route module: ${routePath}`);
+    process.exit(1);
+  }
+  return route;
 };
 
 app.use('/api/auth', loadRoute('./routes/auth'));
@@ -55,29 +74,42 @@ app.use('/api/admin', loadRoute('./routes/admin'));
 app.use('/api/reviews', loadRoute('./routes/reviews'));
 app.use('/api/payment', loadRoute('./routes/payment'));
 
-// Enhanced error handling (this stays after all routes)
-app.use((err, req, res, next) => {
-    console.error(`[${new Date().toISOString()}] Error:`, err.stack);
-    res.status(500).json({
-        status: 'error',
-        message: 'Internal server error'
-    });
+// Health check endpoints
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'E-commerce API is running',
+    timestamp: new Date().toISOString()
+  });
 });
 
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'healthy' });
+});
 
-// Start server after DB connection
+// Error handling (must be last)
+app.use((err, req, res, next) => {
+  console.error(`[${new Date().toISOString()}] Error:`, err.stack);
+  res.status(500).json({
+    status: 'error',
+    message: 'Internal server error'
+  });
+});
+
+// Start server
 connectDB().then(() => {
-    app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-        console.log('Routes:');
-        console.log('- POST /api/auth/register');
-        console.log('- POST /api/auth/login');
-        console.log('- GET /api/products');
-        console.log('- POST /api/cart');
-        console.log('- POST /api/orders');
-        console.log('- GET /api/admin/users');
-        console.log('- GET/POST /api/reviews');
-        console.log('- POST /api/payment/create-payment-intent');
-        console.log('- POST /api/payment/webhook');
-    });
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log('🔗 Available routes:');
+    console.log('- GET    /');
+    console.log('- GET    /health');
+    console.log('- POST   /api/auth/register');
+    console.log('- POST   /api/auth/login');
+    console.log('- GET    /api/products');
+    console.log('- POST   /api/cart');
+    console.log('- POST   /api/orders');
+    console.log('- GET    /api/admin/users');
+    console.log('- GET    /api/reviews/product/:productId');
+    console.log('- POST   /api/payment/create-payment-intent');
+  });
 });
