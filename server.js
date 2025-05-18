@@ -42,11 +42,15 @@ const connectDB = async (retries = 5) => {
 app.use(express.json({ limit: '10kb' }));
 app.use(cors({
   origin: process.env.CORS_ORIGIN || [
-    'http://localhost:3000',
-    'https://your-frontend.vercel.app'
+    'http://localhost:3000', // Keep for local development
+    'http://localhost:5173', // Vite default port
+    'https://charming-sfogliatella-ab1dff.netlify.app' // Your Netlify URL
   ],
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'] // Explicit methods
 }));
+
+
 
 // Timeout handling
 app.use((req, res, next) => {
