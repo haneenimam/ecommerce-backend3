@@ -26,7 +26,7 @@ const connectDB = async (retries = 5) => {
   while (retries > 0) {
     try {
       await mongoose.connect(process.env.MONGO_URI);
-      console.log('✅ MongoDB Connected');
+      console.log('MongoDB Connected');
       return;
     } catch (err) {
       console.error(`DB Connection failed (${retries} retries left)`);
@@ -34,7 +34,7 @@ const connectDB = async (retries = 5) => {
       await new Promise(res => setTimeout(res, 5000));
     }
   }
-  console.error('❌ MongoDB connection failed after retries');
+  console.error('MongoDB connection failed after retries');
   process.exit(1);
 };
 
@@ -99,8 +99,8 @@ app.use((err, req, res, next) => {
 // Start server
 connectDB().then(() => {
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log('🔗 Available routes:');
+    console.log(`Server running on port ${PORT}`);
+    console.log('Available routes:');
     console.log('- GET    /');
     console.log('- GET    /health');
     console.log('- POST   /api/auth/register');
