@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Stripe Payment Test</title>
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    body { font-family: Arial; max-width: 500px; margin: 0 auto; padding: 20px; }
+    #card-element { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+    button { background: #556cd6; color: white; border: none; padding: 10px 15px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h2>Test Payment ($19.99)</h2>
+  
+  <form id="payment-form">
+    <div id="card-element"></div>
+    <button id="submit-button">Pay Now</button>
+  </form>
+
+  <div id="payment-result"></div>
+
+  <script>
+    const stripe = Stripe('pk_test_51RPSAJCV615ZEBr2peIUD8q4YPxmrEGrwWHZZogHeCWYssuCeDUrg8iF0f87apS1NSbYnXuyNXSGgdZL2GJSylCC00VyZzUQVA');
+    const elements = stripe.elements();
+    const cardElement = elements.create('card');
+    cardElement.mount('#card-element');
+
+    const form = document.getElementById('payment-form');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      document.getElementById('submit-button').disabled = true;
+
+      // 1. Create Payment Intent
+      const { clientSecret } = await fetch('http://localhost:5000/api/payment/create-payment-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: 1999 }) // $19.99 in cents
+      }).then(r => r.json());
+
+      // 2. Confirm Payment
+      const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: cardElement,
+        }
+      });
+
+      if (error) {
+        document.getElementById('payment-result').innerHTML = `
+          <p style="color: red;">Payment failed: ${error.message}</p>
+        `;
+      } else {
+        document.getElementById('payment-result').innerHTML = `
+          <p style="color: green;">Payment succeeded! ID: ${paymentIntent.id}</p>
+        `;
+      }
+      document.getElementById('submit-button').disabled = false;
+    });
+  </script>
+</body>
+</html>
