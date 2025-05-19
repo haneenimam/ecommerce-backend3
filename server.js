@@ -54,7 +54,7 @@ app.use(cors({
 
 // Timeout handling
 app.use((req, res, next) => {
-    res.setTimeout(10000, () => {
+    res.setTimeout(30000, () => {
         res.status(503).json({ error: 'Service timeout' });
     });
     next();
