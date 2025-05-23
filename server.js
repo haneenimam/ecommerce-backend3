@@ -46,13 +46,22 @@ app.use(express.json({ limit: '10kb' }));
 app.use(express.static(path.join(__dirname, 'public'))); // Serve static files
 
 // CORS Configuration
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://charming-sfogliatella-ab1dff.netlify.app',
+    'https://ecommerce-backend3-31p8.vercel.app'
+];
+
 const corsOptions = {
-    origin: process.env.CORS_ORIGIN || [
-        'http://localhost:3000',
-        'http://localhost:5173',
-        'https://charming-sfogliatella-ab1dff.netlify.app',
-        'http://localhost:5000' // Added for test-payment.html
-    ],
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl)
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE']
 };
