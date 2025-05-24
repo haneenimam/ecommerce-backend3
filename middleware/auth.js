@@ -1,23 +1,30 @@
 const jwt = require('jsonwebtoken');
 
 const auth = (req, res, next) => {
-  const token = req.header('x-auth-token');
-  if (!token) return res.status(401).json({ error: 'No token, authorization denied' });
+  // Get token from header
+  const token = req.header('Authorization')?.replace('Bearer ', '');
+  
+  if (!token) {
+    return res.status(401).json({ message: 'No token, authorization denied' });
+  }
 
   try {
+    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
     next();
   } catch (err) {
-    res.status(400).json({ error: 'Token is not valid' });
+    res.status(401).json({ message: 'Token is not valid' });
   }
 };
 
-const roleCheck = (roles) => (req, res, next) => {
-  if (!roles.includes(req.user.role)) {
-    return res.status(403).json({ error: 'Access denied' });
-  }
-  next();
+const adminAuth = (req, res, next) => {
+  auth(req, res, () => {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+    next();
+  });
 };
 
-module.exports = { auth, roleCheck };
+module.exports = { auth, adminAuth };
