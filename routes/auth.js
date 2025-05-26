@@ -15,15 +15,19 @@ router.post("/register", async (req, res) => {
     }
 
     // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
     const newUser = new User({
       firstName,
       lastName,
       email,
-      password, // Let the schema hash it
+      password: hashedPassword, // ✅ use the hashed password
       role
     });
 
     await newUser.save();
+
 
     res.status(201).json({
       message: "User registered successfully",
