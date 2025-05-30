@@ -62,10 +62,10 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Get all orders (Admin/Seller)
-router.get('/all', auth, roleCheck(['admin', 'seller']), async (req, res) => {
+router.get('/all', auth, roleCheck(['Admin', 'Seller']), async (req, res) => {
   try {
     let query = {};
-    if (req.user.role === 'seller') {
+    if (req.user.role === 'Seller') {
       const sellerProducts = await Product.find({ seller: req.user.id });
       query = { 'items.product': { $in: sellerProducts.map(p => p._id) } };
     }
@@ -82,7 +82,7 @@ router.get('/all', auth, roleCheck(['admin', 'seller']), async (req, res) => {
 });
 
 // Update order status
-router.patch('/:id/status', auth, roleCheck(['admin', 'seller']), async (req, res) => {
+router.patch('/:id/status', auth, roleCheck(['Admin', 'Seller']), async (req, res) => {
   try {
     const { status } = req.body;
     const validStatuses = ['processing', 'shipped', 'delivered', 'cancelled'];
@@ -95,7 +95,7 @@ router.patch('/:id/status', auth, roleCheck(['admin', 'seller']), async (req, re
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
     // Verify seller only updates their own products
-    if (req.user.role === 'seller') {
+    if (req.user.role === 'Seller') {
       const sellerProducts = await Product.find({ seller: req.user.id });
       const allItemsBelongToSeller = order.items.every(item => 
         sellerProducts.some(p => p._id.equals(item.product))

@@ -21,6 +21,7 @@ router.get('/users', auth, roleCheck(['Admin']), async (req, res) => {
   }
 }); */
 
+
 // Update user role (Admin only)
  router.patch('/users/:id', auth, roleCheck(['Admin']), async (req, res) => {
   try {
