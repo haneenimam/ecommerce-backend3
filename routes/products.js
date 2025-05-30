@@ -113,4 +113,33 @@ router.get('/my-products', auth, roleCheck(['seller']), async (req, res) => {
   }
 });
 
+
+
+
+
+
+
+// Delete product (admin can delete any, seller can delete their own)
+router.delete('/:id', auth, roleCheck(['admin', 'seller']), async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    // If the user is a seller, check they own the product
+    if (req.user.role === 'seller' && product.seller.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    await Product.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Product deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting product:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 module.exports = router;
+
