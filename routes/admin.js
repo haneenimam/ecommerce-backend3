@@ -4,15 +4,7 @@ const { auth, roleCheck } = require('../middleware/auth');
 const User = require('../models/User');
 
 // Get all users (Admin only)
-/* router.get('/users', auth, roleCheck(['admin']), async (req, res) => {
-  try {
-    const users = await User.find({}, '-password');
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-}); */
-router.get('/users', async (req, res) => {
+router.get('/users', auth, roleCheck(['Admin']), async (req, res) => {
   try {
     const users = await User.find({}, '-password');
     res.json(users);
@@ -20,9 +12,17 @@ router.get('/users', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+/* router.get('/users', async (req, res) => {
+  try {
+    const users = await User.find({}, '-password');
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}); */
 
 // Update user role (Admin only)
-/* router.patch('/users/:id/role', auth, roleCheck(['admin']), async (req, res) => {
+/* router.patch('/users/:id/role', auth, roleCheck(['Admin']), async (req, res) => {
   try {
     const { role } = req.body;
     const user = await User.findByIdAndUpdate(
