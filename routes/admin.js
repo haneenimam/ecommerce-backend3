@@ -22,23 +22,31 @@ router.get('/users', auth, roleCheck(['Admin']), async (req, res) => {
 }); */
 
 // Update user role (Admin only)
-/* router.patch('/users/:id/role', auth, roleCheck(['Admin']), async (req, res) => {
+ router.patch('/users/:id', auth, roleCheck(['Admin']), async (req, res) => {
   try {
-    const { role } = req.body;
+    const { firstName, lastName, email, role } = req.body;
+
+    const updatedFields = {};
+    if (firstName !== undefined) updatedFields.firstName = firstName;
+    if (lastName !== undefined) updatedFields.lastName = lastName;
+    if (email !== undefined) updatedFields.email = email;
+    if (role !== undefined) updatedFields.role = role;
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
-      { role },
+      updatedFields,
       { new: true }
     ).select('-password');
-    
+
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-}); */
+});
 
-router.patch('/users/:id', async (req, res) => {
+
+/* router.patch('/users/:id', async (req, res) => {
   try {
     const { firstName, lastName, email, role } = req.body;
     
@@ -59,7 +67,7 @@ router.patch('/users/:id', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+}); */
 
 
 module.exports = router;
