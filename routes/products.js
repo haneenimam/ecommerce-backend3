@@ -9,6 +9,7 @@ router.get('/ping', (req, res) => {
 });
 
 // ===== PUBLIC ROUTES ===== //
+
 // Get all products with filtering and pagination
 router.get('/', async (req, res) => {
   try {
@@ -67,6 +68,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // ===== SELLER-ONLY ROUTES ===== //
+
 // Add product (Seller only)
 router.post('/', auth, roleCheck(['seller']), async (req, res) => {
   try {
@@ -78,6 +80,26 @@ router.post('/', auth, roleCheck(['seller']), async (req, res) => {
     res.status(201).json(product);
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// Update product (Seller only)
+router.put('/:id', auth, roleCheck(['seller']), async (req, res) => {
+  try {
+    const updatedProduct = await Product.findOneAndUpdate(
+      { _id: req.params.id, seller: req.user.id },
+      req.body,
+      { new: true }
+    );
+
+    if (!updatedProduct) {
+      return res.status(404).json({ error: 'Product not found or unauthorized' });
+    }
+
+    res.json(updatedProduct);
+  } catch (err) {
+    console.error('Error updating product:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
