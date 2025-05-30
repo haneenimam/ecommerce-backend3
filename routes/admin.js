@@ -38,12 +38,19 @@ router.get('/users', async (req, res) => {
   }
 }); */
 
-router.patch('/users/:id/role', async (req, res) => {
+router.patch('/users/:id', async (req, res) => {
   try {
-    const { role } = req.body;
+    const { firstName, lastName, email, role } = req.body;
+    
+    const updatedFields = {};
+    if (firstName !== undefined) updatedFields.firstName = firstName;
+    if (lastName !== undefined) updatedFields.lastName = lastName;
+    if (email !== undefined) updatedFields.email = email;
+    if (role !== undefined) updatedFields.role = role;
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
-      { role },
+      updatedFields,
       { new: true }
     ).select('-password');
 
@@ -53,5 +60,6 @@ router.patch('/users/:id/role', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 module.exports = router;
