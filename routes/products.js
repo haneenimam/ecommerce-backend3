@@ -69,8 +69,8 @@ router.get('/:id', async (req, res) => {
 
 // ===== SELLER-ONLY ROUTES ===== //
 
-// Add product (Seller only)
-router.post('/', auth, roleCheck(['seller']), async (req, res) => {
+// Add product (Admin and Seller)
+router.post('/', auth, roleCheck(['Admin', 'Seller']), async (req, res) => {
   try {
     const product = new Product({
       ...req.body,
@@ -83,28 +83,37 @@ router.post('/', auth, roleCheck(['seller']), async (req, res) => {
   }
 });
 
-// Update product (Seller only)
-router.put('/:id', auth, roleCheck(['seller']), async (req, res) => {
+// Update product (Admin or Seller)
+router.put('/:id', auth, roleCheck(['Admin', 'Seller']), async (req, res) => {
   try {
-    const updatedProduct = await Product.findOneAndUpdate(
-      { _id: req.params.id, seller: req.user.id },
-      req.body,
-      { new: true }
-    );
+    let product;
 
-    if (!updatedProduct) {
+    if (req.user.role === 'Admin') {
+      // Admin can update any product
+      product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    } else {
+      // Seller can only update their own product
+      product = await Product.findOneAndUpdate(
+        { _id: req.params.id, seller: req.user.id },
+        req.body,
+        { new: true }
+      );
+    }
+
+    if (!product) {
       return res.status(404).json({ error: 'Product not found or unauthorized' });
     }
 
-    res.json(updatedProduct);
+    res.json(product);
   } catch (err) {
     console.error('Error updating product:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
+
 // Get seller's products
-router.get('/my-products', auth, roleCheck(['seller']), async (req, res) => {
+router.get('/my-products', auth, roleCheck(['Seller']), async (req, res) => {
   try {
     const products = await Product.find({ seller: req.user.id });
     res.json(products);
@@ -120,7 +129,7 @@ router.get('/my-products', auth, roleCheck(['seller']), async (req, res) => {
 
 
 // Delete product (admin can delete any, seller can delete their own)
-router.delete('/:id', auth, roleCheck(['admin', 'seller']), async (req, res) => {
+router.delete('/:id', auth, roleCheck(['Admin', 'Seller']), async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
 
@@ -129,7 +138,7 @@ router.delete('/:id', auth, roleCheck(['admin', 'seller']), async (req, res) => 
     }
 
     // If the user is a seller, check they own the product
-    if (req.user.role === 'seller' && product.seller.toString() !== req.user.id) {
+    if (req.user.role === 'Seller' && product.seller.toString() !== req.user.id) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
