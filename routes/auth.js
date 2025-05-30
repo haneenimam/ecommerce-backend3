@@ -22,7 +22,7 @@ router.post("/register", async (req, res) => {
       firstName,
       lastName,
       email,
-      password: hashedPassword, // ✅ use the hashed password
+      password: hashedPassword, 
       role
     });
 
@@ -98,5 +98,29 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
+
+
+
+
+
+// Token verification route
+router.get("/verify", (req, res) => {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "No token provided" });
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        res.json({ user: decoded });
+    } catch (err) {
+        res.status(403).json({ message: "Invalid token" });
+    }
+});
+
 
 module.exports = router;
