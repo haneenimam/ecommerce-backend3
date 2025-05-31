@@ -8,14 +8,13 @@ const Product = require('../models/Product');
 // Guest or Authenticated: Create order (from frontend data)
 router.post('/', async (req, res) => {
   try {
-    const { items, user, shippingInfo } = req.body;
+    const { items, user, shippingInfo, paymentMethod, cardNumber, cardName, expiry, cvv } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'Order must contain items' });
     }
 
-    // Verify stock and calculate total
-    let total = 0;
+    let totalPrice = 0;
     const orderItems = [];
 
     for (const item of items) {
@@ -25,24 +24,26 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ error: `${product.name} has insufficient stock` });
       }
 
-      total += product.price * item.quantity;
+      totalPrice += product.price * item.quantity;
       orderItems.push({
         product: product._id,
         quantity: item.quantity,
         price: product.price,
       });
 
-      // Update stock
-      await Product.findByIdAndUpdate(product._id, {
-        $inc: { stock: -item.quantity },
-      });
+      await Product.findByIdAndUpdate(product._id, { $inc: { stock: -item.quantity } });
     }
 
     const newOrder = new Order({
       user: user || null,
       items: orderItems,
-      total,
+      totalPrice,
       shippingInfo: shippingInfo || {},
+      paymentMethod,
+      cardNumber,
+      cardName,
+      expiry,
+      cvv,
       status: 'processing',
     });
 
@@ -52,6 +53,7 @@ router.post('/', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // Authenticated: Get user's orders
 router.get('/', auth, async (req, res) => {
