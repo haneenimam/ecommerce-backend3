@@ -22,18 +22,21 @@ router.post('/', async (req, res) => {
 
     const mailOptions = {
       from: `"${name}" <${email}>`,
-      to: 'rowa641@email.com', // غيريها لبريدك الحقيقي
+      to: 'haneenimam99@gmail.com',
       subject: `New message from ${name}`,
       text: `From: ${name}\nEmail: ${email}\n\n${message}`
     };
 
-    await transporter.sendMail(mailOptions);
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Message sent:', info.messageId); // ⬅ أضف دي
+
     res.status(200).json({ message: 'Message sent successfully.' });
 
   } catch (error) {
-    console.error('Email send error:', error);
+    console.error('Email send error:', error); // ⬅ دي بتطبع الخطأ
     res.status(500).json({ message: 'Failed to send message.' });
   }
 });
+
 
 module.exports = router;
