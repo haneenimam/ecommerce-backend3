@@ -2,61 +2,58 @@ const express = require('express');
 const router = express.Router();
 const { auth, roleCheck } = require('../middleware/auth');
 const Order = require('../models/Order');
+const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 
-// Create order (guest or logged-in user)
+// Guest or Authenticated: Create order (from frontend data)
 router.post('/', async (req, res) => {
   try {
-    const { items, userInfo } = req.body;
+    const { items, user, shippingInfo } = req.body;
 
-    if (!items || items.length === 0) {
-      return res.status(400).json({ error: 'Order items are required' });
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Order must contain items' });
     }
 
-    // Validate items and calculate total
+    // Verify stock and calculate total
     let total = 0;
+    const orderItems = [];
+
     for (const item of items) {
       const product = await Product.findById(item.product);
-      if (!product) {
-        return res.status(404).json({ error: 'Product not found' });
-      }
+      if (!product) return res.status(404).json({ error: 'Product not found' });
       if (product.stock < item.quantity) {
         return res.status(400).json({ error: `${product.name} has insufficient stock` });
       }
+
       total += product.price * item.quantity;
-    }
+      orderItems.push({
+        product: product._id,
+        quantity: item.quantity,
+        price: product.price,
+      });
 
-    // Create order
-    const order = new Order({
-      user: req.user?.id || null, // If logged in, assign user ID; otherwise null
-      userInfo, // Store guest user info (name, email, address, etc.)
-      items: await Promise.all(items.map(async item => {
-        const product = await Product.findById(item.product);
-        return {
-          product: product._id,
-          quantity: item.quantity,
-          price: product.price
-        };
-      })),
-      total,
-      status: 'processing'
-    });
-
-    // Deduct stock
-    for (const item of items) {
-      await Product.findByIdAndUpdate(item.product, {
-        $inc: { stock: -item.quantity }
+      // Update stock
+      await Product.findByIdAndUpdate(product._id, {
+        $inc: { stock: -item.quantity },
       });
     }
 
-    await order.save();
-    res.status(201).json(order);
+    const newOrder = new Order({
+      user: user || null,
+      items: orderItems,
+      total,
+      shippingInfo: shippingInfo || {},
+      status: 'processing',
+    });
+
+    await newOrder.save();
+    res.status(201).json(newOrder);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Get user's orders
+// Authenticated: Get user's orders
 router.get('/', auth, async (req, res) => {
   try {
     const orders = await Order.find({ user: req.user.id })
@@ -69,7 +66,7 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// Get all orders (Admin/Seller)
+// Admin/Seller: Get all orders
 router.get('/all', auth, roleCheck(['Admin', 'Seller']), async (req, res) => {
   try {
     let query = {};
@@ -89,7 +86,7 @@ router.get('/all', auth, roleCheck(['Admin', 'Seller']), async (req, res) => {
   }
 });
 
-// Update order status
+// Admin/Seller: Update order status
 router.patch('/:id/status', auth, roleCheck(['Admin', 'Seller']), async (req, res) => {
   try {
     const { status } = req.body;
@@ -104,10 +101,13 @@ router.patch('/:id/status', auth, roleCheck(['Admin', 'Seller']), async (req, re
 
     if (req.user.role === 'Seller') {
       const sellerProducts = await Product.find({ seller: req.user.id });
-      const allItemsBelongToSeller = order.items.every(item =>
-        sellerProducts.some(p => p._id.equals(item.product))
+      const sellerProductIds = sellerProducts.map(p => p._id.toString());
+
+      const isAuthorized = order.items.every(item =>
+        sellerProductIds.includes(item.product.toString())
       );
-      if (!allItemsBelongToSeller) {
+
+      if (!isAuthorized) {
         return res.status(403).json({ error: 'Not authorized to update this order' });
       }
     }
