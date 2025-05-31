@@ -2,8 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const path = require('path');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); // Add Stripe init
+const path = require('path'); // Added for static file serving
 
 // Verify environment variables
 if (!process.env.MONGO_URI || !process.env.STRIPE_SECRET_KEY) {
@@ -44,7 +43,7 @@ const connectDB = async (retries = 5) => {
 
 // Middleware
 app.use(express.json({ limit: '10kb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'))); // Serve static files
 
 // CORS Configuration
 const allowedOrigins = [
@@ -68,7 +67,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Special CORS + Raw body for Stripe webhook
+// Special CORS for Stripe webhook (raw body needed)
 app.post('/api/payment/webhook', express.raw({ type: 'application/json' }), (req, res) => {
     const sig = req.headers['stripe-signature'];
     let event;
@@ -115,7 +114,6 @@ app.use('/api/orders', loadRoute('./routes/orders'));
 app.use('/api/admin', loadRoute('./routes/admin'));
 app.use('/api/reviews', loadRoute('./routes/reviews'));
 app.use('/api/payment', loadRoute('./routes/payment'));
-app.use('/api/contact', loadRoute('./routes/contact')); // ✅ Added contact route
 
 // Serve test payment page
 app.get('/test-payment', (req, res) => {
@@ -161,7 +159,6 @@ connectDB().then(() => {
         console.log('- GET    /api/reviews/product/:productId');
         console.log('- POST   /api/payment/create-payment-intent');
         console.log('- POST   /api/payment/webhook');
-        console.log('- POST   /api/contact'); // ✅ Contact route listed
         console.log('\nTest payment page: http://localhost:5000/test-payment');
     });
 });
