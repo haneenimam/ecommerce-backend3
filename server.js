@@ -2,7 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const path = require('path'); // Added for static file serving
+const path = require('path');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 // Verify environment variables
 if (!process.env.MONGO_URI || !process.env.STRIPE_SECRET_KEY) {
@@ -10,25 +11,25 @@ if (!process.env.MONGO_URI || !process.env.STRIPE_SECRET_KEY) {
     process.exit(1);
 }
 
-// Verify no conflicting router package
+// Check for conflicting router package
 try {
-    const router = require('router');
+    require('router');
     console.error('CONFLICT: Separate router package installed');
     process.exit(1);
 } catch (err) {
-    // Proceed as expected
+    // OK
 }
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Enhanced DB connection with retry logic
+// DB Connection with retry logic
 const connectDB = async (retries = 5) => {
     while (retries > 0) {
         try {
             await mongoose.connect(process.env.MONGO_URI, {
                 serverSelectionTimeoutMS: 30000,
-                socketTimeoutMS: 45000
+                socketTimeoutMS: 45000,
             });
             console.log('MongoDB Connected');
             return;
@@ -43,7 +44,7 @@ const connectDB = async (retries = 5) => {
 
 // Middleware
 app.use(express.json({ limit: '10kb' }));
-app.use(express.static(path.join(__dirname, 'public'))); // Serve static files
+app.use(express.static(path.join(__dirname, 'public')));
 
 // CORS Configuration
 const allowedOrigins = [
@@ -67,7 +68,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Special CORS for Stripe webhook (raw body needed)
+// Stripe webhook (raw body)
 app.post('/api/payment/webhook', express.raw({ type: 'application/json' }), (req, res) => {
     const sig = req.headers['stripe-signature'];
     let event;
@@ -96,7 +97,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// Route imports
+// Route loader
 const loadRoute = (routePath) => {
     const route = require(routePath);
     if (typeof route !== 'function') {
@@ -114,13 +115,14 @@ app.use('/api/orders', loadRoute('./routes/orders'));
 app.use('/api/admin', loadRoute('./routes/admin'));
 app.use('/api/reviews', loadRoute('./routes/reviews'));
 app.use('/api/payment', loadRoute('./routes/payment'));
+app.use('/api/contact', loadRoute('./routes/contact')); // ✅ NEW route added here
 
 // Serve test payment page
 app.get('/test-payment', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'test-payment.html'));
 });
 
-// Health check endpoints
+// Health check
 app.get('/', (req, res) => {
     res.status(200).json({
         status: 'success',
@@ -133,7 +135,7 @@ app.get('/health', (req, res) => {
     res.status(200).json({ status: 'healthy' });
 });
 
-// Error handling (must be last)
+// Error handler (must be last)
 app.use((err, req, res, next) => {
     console.error(`[${new Date().toISOString()}] Error:`, err.stack);
     res.status(500).json({
@@ -159,6 +161,7 @@ connectDB().then(() => {
         console.log('- GET    /api/reviews/product/:productId');
         console.log('- POST   /api/payment/create-payment-intent');
         console.log('- POST   /api/payment/webhook');
+        console.log('- POST   /api/contact');
         console.log('\nTest payment page: http://localhost:5000/test-payment');
     });
 });
