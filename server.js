@@ -50,9 +50,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:5173',
-    'https://charming-sfogliatella-ab1dff.netlify.app',
-    'https://ecommerce-backend3-31p8.vercel.app'
+    'https://ecommerce-backend3-31p8.vercel.app',
+    'https://craftoraa.netlify.app',
+    '*'
 ];
+
 
 const corsOptions = {
     origin: (origin, callback) => {
