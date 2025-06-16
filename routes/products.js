@@ -86,22 +86,26 @@ router.post('/', auth, roleCheck(['Admin', 'Seller']), async (req, res) => {
 // Update product (Admin or Seller)
 router.put('/:id', auth, roleCheck(['Admin', 'Seller']), async (req, res) => {
   try {
-    let product;
-
-    if (req.user.role === 'Admin') {
-      // Admin can update any product
-      product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    } else {
-      // Seller can only update their own product
-      product = await Product.findOneAndUpdate(
-        { _id: req.params.id, seller: req.user.id },
-        req.body,
-        { new: true }
-      );
+    let product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
     }
 
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found or unauthorized' });
+    // If image is not in the request, keep the existing image
+    const updatedData = {
+      ...product.toObject(),
+      ...req.body,
+      image: req.body.image || product.image,
+    };
+
+    if (req.user.role === 'Admin') {
+      product = await Product.findByIdAndUpdate(req.params.id, updatedData, { new: true });
+    } else {
+      product = await Product.findOneAndUpdate(
+        { _id: req.params.id, seller: req.user.id },
+        updatedData,
+        { new: true }
+      );
     }
 
     res.json(product);
@@ -110,6 +114,7 @@ router.put('/:id', auth, roleCheck(['Admin', 'Seller']), async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 
 // Get seller's products
