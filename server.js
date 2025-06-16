@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const path = require('path');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); // Add Stripe init
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); 
 
 // Verify environment variables
 if (!process.env.MONGO_URI || !process.env.STRIPE_SECRET_KEY) {
@@ -163,7 +163,7 @@ connectDB().then(() => {
         console.log('- GET    /api/reviews/product/:productId');
         console.log('- POST   /api/payment/create-payment-intent');
         console.log('- POST   /api/payment/webhook');
-        console.log('- POST   /api/contact'); // ✅ Contact route listed
+        console.log('- POST   /api/contact'); 
         console.log('\nTest payment page: http://localhost:5000/test-payment');
     });
 });
