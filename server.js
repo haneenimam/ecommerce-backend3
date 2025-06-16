@@ -115,7 +115,6 @@ app.use('/api/products', loadRoute('./routes/products'));
 app.use('/api/cart', loadRoute('./routes/cart'));
 app.use('/api/orders', loadRoute('./routes/orders'));
 app.use('/api/admin', loadRoute('./routes/admin'));
-app.use('/api/reviews', loadRoute('./routes/reviews'));
 app.use('/api/payment', loadRoute('./routes/payment'));
 app.use('/api/contact', loadRoute('./routes/contact')); // ✅ Added contact route
 
@@ -160,7 +159,6 @@ connectDB().then(() => {
         console.log('- POST   /api/cart');
         console.log('- POST   /api/orders');
         console.log('- GET    /api/admin/users');
-        console.log('- GET    /api/reviews/product/:productId');
         console.log('- POST   /api/payment/create-payment-intent');
         console.log('- POST   /api/payment/webhook');
         console.log('- POST   /api/contact'); 
