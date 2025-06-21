@@ -126,7 +126,7 @@ app.get('/test-payment', (req, res) => {
 app.get('/', (req, res) => {
   res.status(200).json({
     status: 'success',
-    message: '🛒 E-commerce API is running',
+    message: 'E-commerce API is running',
     timestamp: new Date().toISOString()
   });
 });
