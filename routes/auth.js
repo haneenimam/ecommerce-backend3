@@ -1,10 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
-const User = require("../models/User");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
+const User = require("../models/User");
 
-// Register
+// ===== REGISTER =====
 router.post("/register", async (req, res) => {
   try {
     const { firstName, lastName, email, password, role } = req.body;
@@ -14,7 +15,6 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -22,12 +22,11 @@ router.post("/register", async (req, res) => {
       firstName,
       lastName,
       email,
-      password: hashedPassword, 
-      role
+      password: hashedPassword,
+      role,
     });
 
     await newUser.save();
-
 
     res.status(201).json({
       message: "User registered successfully",
@@ -44,44 +43,28 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// Login
+// ===== LOGIN =====
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    console.log("Login attempt:", { email, password });
-
     const user = await User.findOne({ email });
-    if (!user) {
-      console.log("User not found with email:", email);
+    if (!user || !user.password) {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
-    console.log("User found:", user);
-
-    if (!user.password) {
-      console.log("User password is missing from database.");
-      return res.status(400).json({ message: "User has no password set" });
-    }
-
     const isMatch = await bcrypt.compare(password, user.password);
-    console.log("Password match result:", isMatch);
-
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
-    // Ensure JWT secret is defined
     if (!process.env.JWT_SECRET) {
-      console.error("JWT_SECRET is not defined in environment variables");
-      return res.status(500).json({ message: "Server config error" });
+      return res.status(500).json({ message: "JWT_SECRET not defined" });
     }
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
 
     res.status(200).json({
       message: "Login successful",
@@ -99,28 +82,82 @@ router.post("/login", async (req, res) => {
   }
 });
 
-
-
-
-
-
-// Token verification route
+// ===== TOKEN VERIFY =====
 router.get("/verify", (req, res) => {
-    const authHeader = req.headers.authorization;
+  const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return res.status(401).json({ message: "No token provided" });
-    }
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "No token provided" });
+  }
 
-    const token = authHeader.split(" ")[1];
+  const token = authHeader.split(" ")[1];
 
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        res.json({ user: decoded });
-    } catch (err) {
-        res.status(403).json({ message: "Invalid token" });
-    }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    res.json({ user: decoded });
+  } catch (err) {
+    res.status(403).json({ message: "Invalid token" });
+  }
 });
 
+// ===== FORGOT PASSWORD =====
+router.post("/forgot-password", async (req, res) => {
+  const { email } = req.body;
+
+  const user = await User.findOne({ email });
+  if (!user)
+    return res.status(404).json({ success: false, message: "User not found" });
+
+  const code = Math.floor(1000 + Math.random() * 9000).toString();
+  const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+  user.resetCode = code;
+  user.resetCodeExpires = expires;
+  await user.save();
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to: user.email,
+    subject: "Reset your password",
+    text: `Your reset code is: ${code}`,
+  });
+
+  res.json({ success: true, userId: user._id });
+});
+
+// ===== RESET PASSWORD =====
+router.post("/reset-password", async (req, res) => {
+  const { userId, email, code, newPassword } = req.body;
+
+  const user = await User.findOne({ _id: userId, email });
+  if (!user)
+    return res.status(404).json({ success: false, message: "User not found" });
+
+  if (
+    !user.resetCode ||
+    user.resetCode !== code ||
+    user.resetCodeExpires < new Date()
+  ) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid or expired code" });
+  }
+
+  const hashed = await bcrypt.hash(newPassword, 10);
+  user.password = hashed;
+  user.resetCode = null;
+  user.resetCodeExpires = null;
+  await user.save();
+
+  res.json({ success: true, message: "Password reset successful" });
+});
 
 module.exports = router;
