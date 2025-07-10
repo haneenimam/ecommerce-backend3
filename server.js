@@ -17,7 +17,6 @@ try {
   console.error('CONFLICT: Separate "router" package detected!');
   process.exit(1);
 } catch (err) {
-  // All good
 }
 
 const app = express();
@@ -42,7 +41,6 @@ const connectDB = async (retries = 5) => {
   process.exit(1);
 };
 
-// Middlewares
 app.use(express.json({ limit: '10kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -52,7 +50,7 @@ const allowedOrigins = [
   'http://localhost:5173',
   'https://craftoraa.netlify.app',
   'https://ecommerce-backend3-31p8.vercel.app',
-  '*'
+  'https://craftoraaa.netlify.app',
 ];
 
 const corsOptions = {
@@ -69,7 +67,6 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Stripe webhook needs raw body
 app.post('/api/payment/webhook', express.raw({ type: 'application/json' }), (req, res) => {
   const sig = req.headers['stripe-signature'];
   let event;
@@ -117,7 +114,6 @@ app.use('/api/admin', loadRoute('./routes/admin'));
 app.use('/api/payment', loadRoute('./routes/payment'));
 app.use('/api/contact', loadRoute('./routes/contact'));
 
-// Serve test page
 app.get('/test-payment', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'test-payment.html'));
 });

@@ -4,9 +4,10 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const User = require("../models/User");
+const { auth, roleCheck } = require("../middleware/auth"); 
 
 // ===== REGISTER =====
-router.post("/register", async (req, res) => {
+/* router.post("/register", async (req, res) => {
   try {
     const { firstName, lastName, email, password, role } = req.body;
 
@@ -41,7 +42,90 @@ router.post("/register", async (req, res) => {
     console.error("Registration error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
+}); */
+
+// ===== REGISTER (Public - Default to User Role) =====
+router.post("/register", async (req, res) => {
+  try {
+    const { firstName, lastName, email, password } = req.body;
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const newUser = new User({
+      firstName,
+      lastName,
+      email,
+      password: hashedPassword,
+      role: "User", // Force "User" role
+    });
+
+    await newUser.save();
+
+    res.status(201).json({
+      message: "User registered successfully",
+      user: {
+        firstName,
+        lastName,
+        email,
+        role: "User",
+      },
+    });
+  } catch (error) {
+    console.error("Registration error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
 });
+
+
+
+
+// ===== ADMIN: Create Seller or Admin =====
+router.post("/admin/register", auth, roleCheck(["Admin"]), async (req, res) => {
+  try {
+    const { firstName, lastName, email, password, role } = req.body;
+
+    if (!["Admin", "Seller"].includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = new User({
+      firstName,
+      lastName,
+      email,
+      password: hashedPassword,
+      role,
+    });
+
+    await newUser.save();
+
+    res.status(201).json({
+      message: `New ${role} registered successfully`,
+      user: {
+        firstName,
+        lastName,
+        email,
+        role,
+      },
+    });
+  } catch (error) {
+    console.error("Admin user creation error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
 
 // ===== LOGIN =====
 router.post("/login", async (req, res) => {
